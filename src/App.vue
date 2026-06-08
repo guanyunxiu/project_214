@@ -56,7 +56,7 @@
             :row-key="(record) => record.id"
             :row-class-name="(record, index) => index === playerStore.currentIndex ? 'playing' : ''"
             size="middle"
-            @row-dblclick="(_, index) => playerStore.playSong(index)"
+            @row-dblclick="handleDoubleClickPlay"
           >
             <template #bodyCell="{ column, record, index }">
               <template v-if="column.key === 'title'">
@@ -100,14 +100,14 @@
 
     <div class="control-panel">
       <div class="control-buttons">
-        <button class="control-btn" @click="playerStore.playPrevious" :disabled="playerStore.playlist.length === 0" title="上一曲">
-          ⏮️
+        <button class="control-btn nav-btn" @click="handlePlayPrevious" :disabled="playerStore.playlist.length === 0" title="上一曲">
+          <StepBackwardOutlined />
         </button>
-        <button class="control-btn play-btn" @click="playerStore.togglePlay" :disabled="playerStore.playlist.length === 0" :title="playerStore.isPlaying ? '暂停' : '播放'">
+        <button class="control-btn play-btn" @click="handleTogglePlay" :disabled="playerStore.playlist.length === 0" :title="playerStore.isPlaying ? '暂停' : '播放'">
           {{ playerStore.isPlaying ? '⏸️' : '▶️' }}
         </button>
-        <button class="control-btn" @click="playerStore.playNext" :disabled="playerStore.playlist.length === 0" title="下一曲">
-          ⏭️
+        <button class="control-btn nav-btn" @click="handlePlayNext" :disabled="playerStore.playlist.length === 0" title="下一曲">
+          <StepForwardOutlined />
         </button>
       </div>
 
@@ -137,6 +137,7 @@
         <a-slider
           :value="playerStore.isMuted ? 0 : playerStore.volume * 100"
           :max="100"
+          :step="1"
           :tooltip-formatter="(value) => `${value}%`"
           @change="handleVolumeChange"
         />
@@ -148,7 +149,7 @@
 <script setup>
 import { ref, watch, onMounted, nextTick } from 'vue'
 import { message } from 'ant-design-vue'
-import { FolderOpenOutlined, DeleteOutlined } from '@ant-design/icons-vue'
+import { FolderOpenOutlined, DeleteOutlined, StepBackwardOutlined, StepForwardOutlined } from '@ant-design/icons-vue'
 import { usePlayerStore } from './stores/player'
 
 const playerStore = usePlayerStore()
@@ -239,6 +240,12 @@ watch(() => playerStore.isPlaying, async (isPlaying) => {
   }
 })
 
+watch([() => playerStore.volume, () => playerStore.isMuted], ([volume, isMuted]) => {
+  if (audioRef.value) {
+    audioRef.value.volume = isMuted ? 0 : volume
+  }
+})
+
 function onTimeUpdate() {
   if (!isSeeking.value && audioRef.value) {
     playerStore.setCurrentTime(audioRef.value.currentTime)
@@ -281,8 +288,39 @@ function handleSeekEnd(value) {
   }
 }
 
+function handleTogglePlay() {
+  playerStore.togglePlay()
+}
+
+function handlePlayPrevious() {
+  if (audioRef.value) {
+    audioRef.value.pause()
+    audioRef.value.currentTime = 0
+  }
+  playerStore.playPrevious()
+}
+
+function handlePlayNext() {
+  if (audioRef.value) {
+    audioRef.value.pause()
+    audioRef.value.currentTime = 0
+  }
+  playerStore.playNext()
+}
+
+function handleDoubleClickPlay(record, index) {
+  if (audioRef.value) {
+    audioRef.value.pause()
+    audioRef.value.currentTime = 0
+  }
+  playerStore.playSong(index)
+}
+
 function handleVolumeChange(value) {
   playerStore.setVolume(value / 100)
+  if (audioRef.value) {
+    audioRef.value.volume = playerStore.isMuted ? 0 : playerStore.volume
+  }
 }
 
 async function handleScanFolder() {

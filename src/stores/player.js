@@ -91,9 +91,13 @@ export const usePlayerStore = defineStore('player', () => {
 
   function playSong(index) {
     if (index < 0 || index >= playlist.value.length) return
+    const isSameSong = currentIndex.value === index
     currentIndex.value = index
     isPlaying.value = true
     currentTime.value = 0
+    if (isSameSong) {
+      currentAudioUrl.value = null
+    }
   }
 
   function togglePlay() {

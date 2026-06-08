@@ -136,6 +136,15 @@ html, body, #app {
   background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
 }
 
+.control-btn.nav-btn {
+  font-size: 20px;
+}
+
+.control-btn.nav-btn:hover {
+  background: rgba(102, 126, 234, 0.3);
+  color: #667eea;
+}
+
 .control-btn.active {
   color: #667eea;
 }
