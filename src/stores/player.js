@@ -381,33 +381,62 @@ export const usePlayerStore = defineStore('player', () => {
     saveSettings()
   }
 
+  function stripCoverForIPC(song) {
+    const { cover, ...rest } = song
+    return rest
+  }
+
+  function stripPlaylistForIPC(songs) {
+    return JSON.parse(JSON.stringify(songs.map(stripCoverForIPC)))
+  }
+
   async function saveToStorage() {
     if (window.electronAPI) {
-      await window.electronAPI.storeSet('playlist', playlist.value)
+      try {
+        await window.electronAPI.storeSet('playlist', stripPlaylistForIPC(playlist.value))
+      } catch (e) {
+        console.error('保存播放列表失败:', e)
+      }
     }
   }
 
   async function saveSettings() {
     if (window.electronAPI) {
-      await window.electronAPI.storeSet('settings', {
-        volume: volume.value,
-        playMode: playMode.value,
-        fadeInDuration: fadeInDuration.value,
-        fadeOutDuration: fadeOutDuration.value,
-        gainNormalization: gainNormalization.value
-      })
+      try {
+        await window.electronAPI.storeSet('settings', {
+          volume: volume.value,
+          playMode: playMode.value,
+          fadeInDuration: fadeInDuration.value,
+          fadeOutDuration: fadeOutDuration.value,
+          gainNormalization: gainNormalization.value
+        })
+      } catch (e) {
+        console.error('保存设置失败:', e)
+      }
     }
   }
 
   async function savePlayHistory() {
     if (window.electronAPI) {
-      await window.electronAPI.storeSet('playHistory', playHistory.value)
+      try {
+        await window.electronAPI.storeSet('playHistory', stripPlaylistForIPC(playHistory.value))
+      } catch (e) {
+        console.error('保存播放历史失败:', e)
+      }
     }
   }
 
   async function saveCustomPlaylists() {
     if (window.electronAPI) {
-      await window.electronAPI.storeSet('customPlaylists', customPlaylists.value)
+      try {
+        const data = JSON.parse(JSON.stringify(customPlaylists.value.map(pl => ({
+          ...pl,
+          songs: stripPlaylistForIPC(pl.songs)
+        }))))
+        await window.electronAPI.storeSet('customPlaylists', data)
+      } catch (e) {
+        console.error('保存自定义歌单失败:', e)
+      }
     }
   }
 

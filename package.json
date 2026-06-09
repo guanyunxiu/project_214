@@ -15,7 +15,6 @@
     "@ant-design/icons-vue": "^7.0.1",
     "ant-design-vue": "^4.1.2",
     "chokidar": "^3.6.0",
-    "electron-store": "^8.2.0",
     "music-metadata": "^7.14.0",
     "pinia": "^2.1.7",
     "vue": "^3.4.21"

@@ -3,13 +3,55 @@ const path = require('path')
 const fs = require('fs')
 const crypto = require('crypto')
 const mm = require('music-metadata')
-const Store = require('electron-store')
 const chokidar = require('chokidar')
 
 let mainWindow = null
-let store = null
 const watchers = new Map()
 const md5Cache = new Map()
+
+const STORE_PATH = path.join(app.getPath('userData'), 'config.json')
+const storeData = {}
+
+function storeLoad() {
+  try {
+    if (fs.existsSync(STORE_PATH)) {
+      const raw = fs.readFileSync(STORE_PATH, 'utf-8')
+      const parsed = JSON.parse(raw)
+      Object.assign(storeData, parsed)
+    }
+  } catch (e) {
+    console.error('加载存储失败:', e)
+  }
+}
+
+function storeSave() {
+  try {
+    const tmpPath = STORE_PATH + '.tmp-' + Date.now()
+    fs.writeFileSync(tmpPath, JSON.stringify(storeData, null, 2), 'utf-8')
+    fs.renameSync(tmpPath, STORE_PATH)
+  } catch (e) {
+    console.error('保存存储失败:', e)
+    try {
+      fs.writeFileSync(STORE_PATH, JSON.stringify(storeData, null, 2), 'utf-8')
+    } catch (e2) {
+      console.error('直接写入存储也失败:', e2)
+    }
+  }
+}
+
+function storeGet(key) {
+  return storeData[key] !== undefined ? storeData[key] : null
+}
+
+function storeSet(key, value) {
+  storeData[key] = value
+  storeSave()
+}
+
+function storeDelete(key) {
+  delete storeData[key]
+  storeSave()
+}
 
 function createWindow() {
   const isDev = process.env.NODE_ENV === 'development'
@@ -41,21 +83,18 @@ function createWindow() {
 }
 
 app.whenReady().then(() => {
-  store = new Store({
-    defaults: {
-      settings: {
-        volume: 0.8,
-        playMode: 'sequence',
-        musicFolders: [],
-        fadeInDuration: 1.0,
-        fadeOutDuration: 1.0,
-        gainNormalization: false
-      },
-      playlist: [],
-      customPlaylists: [],
-      playHistory: []
-    }
-  })
+  storeData.settings = {
+    volume: 0.8,
+    playMode: 'sequence',
+    musicFolders: [],
+    fadeInDuration: 1.0,
+    fadeOutDuration: 1.0,
+    gainNormalization: false
+  }
+  storeData.playlist = []
+  storeData.customPlaylists = []
+  storeData.playHistory = []
+  storeLoad()
 
   createWindow()
 
@@ -192,9 +231,15 @@ function startWatchingFolder(folderPath) {
 
   const watcher = chokidar.watch(folderPath, {
     ignored: (filePath) => {
-      if (fs.statSync(filePath, { throwIfNoEntry: false })?.isDirectory()) return false
-      const ext = path.extname(filePath).toLowerCase()
-      return !SUPPORTED_EXTENSIONS.includes(ext)
+      try {
+        const stat = fs.statSync(filePath, { throwIfNoEntry: false })
+        if (!stat) return true
+        if (stat.isDirectory()) return false
+        const ext = path.extname(filePath).toLowerCase()
+        return !SUPPORTED_EXTENSIONS.includes(ext)
+      } catch {
+        return true
+      }
     },
     persistent: true,
     ignoreInitial: true,
@@ -256,10 +301,14 @@ ipcMain.handle('select-folder', async () => {
       songs.push(metadata)
     }
 
-    const musicFolders = store.get('settings.musicFolders') || []
-    if (!musicFolders.includes(folderPath)) {
-      musicFolders.push(folderPath)
-      store.set('settings.musicFolders', musicFolders)
+    try {
+      const musicFolders = storeGet('settings.musicFolders') || []
+      if (!musicFolders.includes(folderPath)) {
+        musicFolders.push(folderPath)
+        storeSet('settings.musicFolders', musicFolders)
+      }
+    } catch (e) {
+      console.error('保存音乐文件夹设置失败:', e)
     }
 
     startWatchingFolder(folderPath)
@@ -295,17 +344,21 @@ ipcMain.handle('start-watching', (event, folderPath) => {
 
 ipcMain.handle('stop-watching', (event, folderPath) => {
   stopWatchingFolder(folderPath)
-  const musicFolders = store.get('settings.musicFolders') || []
-  const idx = musicFolders.indexOf(folderPath)
-  if (idx >= 0) {
-    musicFolders.splice(idx, 1)
-    store.set('settings.musicFolders', musicFolders)
+  try {
+    const musicFolders = storeGet('settings.musicFolders') || []
+    const idx = musicFolders.indexOf(folderPath)
+    if (idx >= 0) {
+      musicFolders.splice(idx, 1)
+      storeSet('settings.musicFolders', musicFolders)
+    }
+  } catch (e) {
+    console.error('更新监控文件夹失败:', e)
   }
   return true
 })
 
 ipcMain.handle('get-watched-folders', () => {
-  return store.get('settings.musicFolders') || []
+  return storeGet('settings.musicFolders') || []
 })
 
 ipcMain.handle('check-files-exist', async (event, filePaths) => {
@@ -326,20 +379,27 @@ ipcMain.handle('compute-md5', async (event, filePath) => {
 })
 
 ipcMain.handle('store-get', (event, key) => {
-  if (!store) return null
-  return store.get(key)
+  return storeGet(key)
 })
 
 ipcMain.handle('store-set', (event, key, value) => {
-  if (!store) return false
-  store.set(key, value)
-  return true
+  try {
+    storeSet(key, value)
+    return true
+  } catch (e) {
+    console.error('store-set 失败:', e)
+    return false
+  }
 })
 
 ipcMain.handle('store-delete', (event, key) => {
-  if (!store) return false
-  store.delete(key)
-  return true
+  try {
+    storeDelete(key)
+    return true
+  } catch (e) {
+    console.error('store-delete 失败:', e)
+    return false
+  }
 })
 
 ipcMain.handle('get-default-music-folder', () => {
