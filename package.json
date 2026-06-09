@@ -12,12 +12,13 @@
     "start": "electron ."
   },
   "dependencies": {
-    "ant-design-vue": "^4.1.2",
     "@ant-design/icons-vue": "^7.0.1",
-    "pinia": "^2.1.7",
-    "vue": "^3.4.21",
+    "ant-design-vue": "^4.1.2",
+    "chokidar": "^3.6.0",
     "electron-store": "^8.2.0",
-    "music-metadata": "^7.14.0"
+    "music-metadata": "^7.14.0",
+    "pinia": "^2.1.7",
+    "vue": "^3.4.21"
   },
   "devDependencies": {
     "@vitejs/plugin-vue": "^5.0.4",
