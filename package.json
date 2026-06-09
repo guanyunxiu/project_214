@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "electron:dev": "concurrently -k \"vite\" \"wait-on http://localhost:5173 && cross-env NODE_ENV=development electron .\"",
+    "electron:dev": "concurrently -k \"vite\" \"wait-on http://localhost:5188 && cross-env NODE_ENV=development electron . --no-sandbox\"",
     "electron:build": "vite build && electron-builder",
     "start": "electron ."
   },
